@@ -19,14 +19,17 @@ package com.google.android.cameraview;
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.graphics.ImageFormat;
+import android.graphics.Rect;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
+import android.hardware.camera2.params.MeteringRectangle;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
@@ -42,7 +45,7 @@ import java.util.SortedSet;
 
 @SuppressWarnings("MissingPermission")
 @TargetApi(21)
-class Camera2 extends CameraViewImpl {
+class Camera2 extends CameraViewImpl implements TapFocusable {
 
     private static final String TAG = "Camera2";
 
@@ -62,6 +65,8 @@ class Camera2 extends CameraViewImpl {
      * Max preview height that is guaranteed by Camera2 API
      */
     private static final int MAX_PREVIEW_HEIGHT = 1080;
+
+    private static final int TAP_FOCUS_TARGET_SIZE = 100;
 
     private final CameraManager mCameraManager;
 
@@ -298,6 +303,42 @@ class Camera2 extends CameraViewImpl {
                 } catch (CameraAccessException e) {
                     mAutoFocus = !mAutoFocus; // Revert
                 }
+            }
+        }
+    }
+
+    @Override
+    public void setFocusTarget(int x, int y) {
+        final Rect sensorArraySize = mCameraCharacteristics.get(
+                CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
+        // References: http://www.morethantechnical.com/2017/02/28/android-camera2-touch-to-focus/
+        // TODO take into account sensor orientation
+        final int sensorCenterY = (int) ((x / (float) mPreview.getWidth())
+                * (float) sensorArraySize.height());
+        final int sensorCenterX = (int) ((y / (float) mPreview.getHeight())
+                * (float) sensorArraySize.width());
+        // touch size in pixel. Values range in [3, 10]...
+        MeteringRectangle focusAreaTouch = new MeteringRectangle(
+                Math.max(sensorCenterX - (TAP_FOCUS_TARGET_SIZE / 2), 0),
+                Math.max(sensorCenterY - (TAP_FOCUS_TARGET_SIZE / 2), 0),
+                TAP_FOCUS_TARGET_SIZE,
+                TAP_FOCUS_TARGET_SIZE,
+                MeteringRectangle.METERING_WEIGHT_MAX);
+        mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
+                CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
+        mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_REGIONS,
+                new MeteringRectangle[]{focusAreaTouch});
+        mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
+                CaptureRequest.CONTROL_AF_MODE_AUTO);
+        mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
+                CameraMetadata.CONTROL_AF_TRIGGER_START);
+
+        if (mCaptureSession != null) {
+            try {
+                mCaptureSession.setRepeatingRequest(mPreviewRequestBuilder.build(),
+                        mCaptureCallback, null);
+            } catch (CameraAccessException e) {
+                e.printStackTrace();
             }
         }
     }

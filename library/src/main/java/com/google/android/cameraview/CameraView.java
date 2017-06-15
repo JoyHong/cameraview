@@ -27,8 +27,12 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.os.ParcelableCompat;
 import android.support.v4.os.ParcelableCompatCreatorCallbacks;
+import android.support.v4.view.GestureDetectorCompat;
 import android.support.v4.view.ViewCompat;
 import android.util.AttributeSet;
+import android.util.Log;
+import android.view.GestureDetector.SimpleOnGestureListener;
+import android.view.MotionEvent;
 import android.widget.FrameLayout;
 
 import java.lang.annotation.Retention;
@@ -43,6 +47,7 @@ public class CameraView extends FrameLayout {
 
     /** The camera device faces the same direction as the device's screen. */
     public static final int FACING_FRONT = Constants.FACING_FRONT;
+    private static final String TAG = CameraView.class.getSimpleName();
 
     /** Direction the camera faces relative to device screen. */
     @IntDef({FACING_BACK, FACING_FRONT})
@@ -76,7 +81,10 @@ public class CameraView extends FrameLayout {
 
     private boolean mAdjustViewBounds;
 
+    private TouchFocusFeedbackView mTouchFocusFeedbackView;
+
     private final DisplayOrientationDetector mDisplayOrientationDetector;
+    private final GestureDetectorCompat mGestureDetectorCompat;
 
     public CameraView(Context context) {
         this(context, null);
@@ -89,9 +97,10 @@ public class CameraView extends FrameLayout {
     @SuppressWarnings("WrongConstant")
     public CameraView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        if (isInEditMode()){
+        if (isInEditMode()) {
             mCallbacks = null;
             mDisplayOrientationDetector = null;
+            mGestureDetectorCompat = null;
             return;
         }
         // Internal setup
@@ -104,6 +113,9 @@ public class CameraView extends FrameLayout {
         } else {
             mImpl = new Camera2Api23(mCallbacks, preview, context);
         }
+        mTouchFocusFeedbackView = new TouchFocusFeedbackView(getContext());
+        addView(mTouchFocusFeedbackView);
+
         // Attributes
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.CameraView, defStyleAttr,
                 R.style.Widget_CameraView);
@@ -125,6 +137,37 @@ public class CameraView extends FrameLayout {
                 mImpl.setDisplayOrientation(displayOrientation);
             }
         };
+
+        mGestureDetectorCompat = new GestureDetectorCompat(context, new SimpleOnGestureListener() {
+            @Override
+            public boolean onSingleTapUp(MotionEvent e) {
+                final int x = (int) e.getX();
+                final int y = (int) e.getY();
+                Log.d(TAG, String.format("Tapped on (%d, %d)", x, y));
+                if (mImpl instanceof TapFocusable) {
+                    ((TapFocusable) mImpl).setFocusTarget(x, y);
+                    mTouchFocusFeedbackView.animateTouchTarget(x, y);
+                    return true;
+                }
+                return false;
+            }
+        });
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        if (mGestureDetectorCompat != null) {
+            mGestureDetectorCompat.onTouchEvent(event);
+        }
+        return true;
+    }
+
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent ev) {
+        if (mGestureDetectorCompat != null) {
+            mGestureDetectorCompat.onTouchEvent(ev);
+        }
+        return true;
     }
 
     @NonNull
@@ -156,7 +199,7 @@ public class CameraView extends FrameLayout {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        if (isInEditMode()){
+        if (isInEditMode()) {
             super.onMeasure(widthMeasureSpec, heightMeasureSpec);
             return;
         }
@@ -245,7 +288,7 @@ public class CameraView extends FrameLayout {
     public void start() {
         if (!mImpl.start()) {
             //store the state ,and restore this state after fall back o Camera1
-            Parcelable state=onSaveInstanceState();
+            Parcelable state = onSaveInstanceState();
             // Camera2 uses legacy hardware layer; fall back to Camera1
             mImpl = new Camera1(mCallbacks, createPreviewImpl(getContext()));
             onRestoreInstanceState(state);

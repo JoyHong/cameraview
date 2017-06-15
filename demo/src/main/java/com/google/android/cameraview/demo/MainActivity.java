@@ -255,7 +255,7 @@ public class MainActivity extends AppCompatActivity implements
             getBackgroundHandler().post(new Runnable() {
                 @Override
                 public void run() {
-                    File file = new File(getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                    final File file = new File(getExternalFilesDir(Environment.DIRECTORY_PICTURES),
                             "picture.jpg");
                     OutputStream os = null;
                     try {
@@ -276,7 +276,6 @@ public class MainActivity extends AppCompatActivity implements
                 }
             });
         }
-
     };
 
     public static class ConfirmationDialogFragment extends DialogFragment {
