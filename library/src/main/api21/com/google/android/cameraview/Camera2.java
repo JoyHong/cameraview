@@ -19,21 +19,26 @@ package com.google.android.cameraview;
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.graphics.ImageFormat;
+import android.graphics.Rect;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
+import android.hardware.camera2.params.MeteringRectangle;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.SparseIntArray;
+import android.view.MotionEvent;
 import android.view.Surface;
+import android.view.View;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -298,6 +303,42 @@ class Camera2 extends CameraViewImpl {
                 } catch (CameraAccessException e) {
                     mAutoFocus = !mAutoFocus; // Revert
                 }
+            }
+        }
+    }
+
+    @Override
+    void setFocusPoint(View view, MotionEvent motionEvent) {
+        final Rect sensorArraySize = mCameraCharacteristics.get(
+                CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
+
+        int sensorOrientation = mCameraCharacteristics.get(
+                CameraCharacteristics.SENSOR_ORIENTATION);
+
+        // (via SENSOR_ORIENTATION)
+        final int y = (int) ((motionEvent.getX() / (float) view.getWidth())
+                * (float) sensorArraySize.height());
+        final int x = (int) ((motionEvent.getY() / (float) view.getHeight())
+                * (float) sensorArraySize.width());
+        final int halfTouchWidth = 50;
+        // touch size in pixel. Values range in [3, 10]...
+        final int halfTouchHeight = 50; //(int)motionEvent.getTouchMinor();
+        MeteringRectangle focusAreaTouch = new MeteringRectangle(Math.max(x - halfTouchWidth, 0),
+                Math.max(y - halfTouchHeight, 0),
+                halfTouchWidth * 2,
+                halfTouchHeight * 2,
+                MeteringRectangle.METERING_WEIGHT_MAX - 1);
+        mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
+        mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_REGIONS, new MeteringRectangle[] { focusAreaTouch });
+        mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO);
+        mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_START);
+
+        if (mCaptureSession != null) {
+            try {
+                mCaptureSession.setRepeatingRequest(mPreviewRequestBuilder.build(),
+                        mCaptureCallback, null);
+            } catch (CameraAccessException e) {
+                e.printStackTrace();
             }
         }
     }

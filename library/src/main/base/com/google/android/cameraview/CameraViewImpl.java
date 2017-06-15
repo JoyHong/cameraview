@@ -16,6 +16,7 @@
 
 package com.google.android.cameraview;
 
+import android.view.MotionEvent;
 import android.view.View;
 
 import java.util.Set;
@@ -58,6 +59,8 @@ abstract class CameraViewImpl {
     abstract AspectRatio getAspectRatio();
 
     abstract void setAutoFocus(boolean autoFocus);
+
+    abstract void setFocusPoint(View view, MotionEvent motionEvent);
 
     abstract boolean getAutoFocus();
 

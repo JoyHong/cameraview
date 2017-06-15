@@ -21,7 +21,9 @@ import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.os.Build;
 import android.support.v4.util.SparseArrayCompat;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
+import android.view.View;
 
 import java.io.IOException;
 import java.util.List;
@@ -191,6 +193,11 @@ class Camera1 extends CameraViewImpl {
         if (setAutoFocusInternal(autoFocus)) {
             mCamera.setParameters(mCameraParameters);
         }
+    }
+
+    @Override
+    void setFocusPoint(View view, MotionEvent motionEvent) {
+        // TODO
     }
 
     @Override
