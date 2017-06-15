@@ -16,6 +16,7 @@
 
 package com.google.android.cameraview;
 
+import android.animation.Animator;
 import android.content.Context;
 import android.support.annotation.AttrRes;
 import android.support.annotation.NonNull;
@@ -51,35 +52,47 @@ public class TouchFocusFeedbackView extends FrameLayout {
 
     public void animateTouchTarget(int x, int y) {
         Log.d(TAG, String.format("Animating touch target to: %d, %d", x, y));
-        setAlpha(1f);
         setX(x - (getMeasuredWidth() / 2));
         setY(y - (getMeasuredHeight() / 2));
         viewCircle.setScaleX(0.5f);
         viewCircle.setScaleY(0.5f);
         viewCircle.setAlpha(1f);
+        viewCircle.animate().cancel();
         viewCircleBorder.setScaleX(1.5f);
         viewCircleBorder.setScaleY(1.5f);
         viewCircleBorder.setAlpha(1f);
+        viewCircleBorder.animate().cancel();
 
         viewCircle.animate()
                 .scaleX(1f)
                 .scaleY(1f)
+                .setListener(new SimpleAnimator() {
+                    @Override
+                    public void onAnimationEnd(Animator animation) {
+                        viewCircle.animate()
+                                .alpha(0f)
+                                .setListener(null)
+                                .start();
+                    }
+                })
                 .start();
 
         viewCircleBorder.animate()
                 .scaleX(1f)
                 .scaleY(1f)
+                .setStartDelay(0)
+                .setListener(new SimpleAnimator() {
+                    @Override
+                    public void onAnimationEnd(Animator animation) {
+                        viewCircleBorder.animate()
+                                .alpha(0f)
+                                .setStartDelay(2000)
+                                .setListener(null)
+                                .start();
+                    }
+                })
                 .start();
 
-        viewCircle.animate()
-                .alpha(0f)
-                .setStartDelay(500)
-                .start();
-
-        viewCircleBorder.animate()
-                .alpha(0f)
-                .setStartDelay(3000)
-                .start();
     }
 
     private void init(Context context) {
@@ -88,5 +101,27 @@ public class TouchFocusFeedbackView extends FrameLayout {
         viewCircle.setAlpha(0f);
         viewCircleBorder = findViewById(R.id.viewCircleBorder);
         viewCircleBorder.setAlpha(0f);
+    }
+
+    public static abstract class SimpleAnimator implements Animator.AnimatorListener {
+        @Override
+        public void onAnimationStart(Animator animation) {
+
+        }
+
+        @Override
+        public void onAnimationEnd(Animator animation) {
+
+        }
+
+        @Override
+        public void onAnimationCancel(Animator animation) {
+
+        }
+
+        @Override
+        public void onAnimationRepeat(Animator animation) {
+
+        }
     }
 }

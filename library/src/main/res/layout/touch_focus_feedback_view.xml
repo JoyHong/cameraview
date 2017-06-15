@@ -19,16 +19,16 @@
 
     <View
         android:id="@+id/viewCircle"
-        android:layout_width="100dp"
-        android:layout_height="100dp"
+        android:layout_width="65dp"
+        android:layout_height="65dp"
         android:layout_gravity="center"
-        android:background="@drawable/circle_100dp_white_translucent"/>
+        android:background="@drawable/circle_65dp_white_translucent"/>
 
     <View
         android:id="@+id/viewCircleBorder"
-        android:layout_width="101dp"
-        android:layout_height="101dp"
+        android:layout_width="66dp"
+        android:layout_height="66dp"
         android:layout_gravity="center"
-        android:background="@drawable/circle_101dp_translucent_white_border"/>
+        android:background="@drawable/circle_66dp_translucent_white_border"/>
 
 </merge>
